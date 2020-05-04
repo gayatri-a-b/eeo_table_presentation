@@ -1,0 +1,549 @@
+---
+title: "clean_n_present_script"
+author: "Gayatri Balasubramanian"
+date: "5/4/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+################################################################### FILE PARAMETERS
+
+knitr::opts_chunk$set(echo = FALSE)
+
+
+################################################################### LIBRARIES
+
+library(gt)
+library(janitor)
+library(tidyverse)
+library(formattable)
+```
+
+```{r}
+################################################################### vARIABLES
+
+occupation <- "Electricians 6355 (SOC 47-2111)"
+type <- "Estimate"
+num_type <- "Number"
+
+
+################################################################### READ FILE WITH DATA
+
+# read in csv file
+
+raw_data <- read_csv(file = "EEO_10_5YR_EEOALL1R_with_ann.csv")
+
+
+################################################################### CLEAN DATA
+
+# set correct column names (set to first row of the csv)
+
+colnames(raw_data) <- raw_data[c(1),]
+
+# remove first row of csv (the colnames replicated)
+
+x <- raw_data[-c(1),]
+
+# pivot columns from wide to narrow
+
+x <- x %>%
+  pivot_longer(
+    # don't include these columns
+    -c("Id", "Id2", "Geography", "Occupation Code"),
+    
+    # set the new pivoted cols to statistic_name
+    names_to = "statistic_name",
+    
+    # set their pivoted value to count
+    values_to = "count"
+  ) %>% 
+  # clean up the names
+  clean_names()
+
+
+################################################################### FILTER DATA BY INTAKE PARAMETERS
+
+# treat count as number
+# only obtain number (or percentage)
+
+x_num_type <- x %>% 
+  mutate(count = as.numeric(count)) %>% # change type
+  filter(
+    grepl(num_type, statistic_name, fixed = TRUE)
+  )
+
+# filter by occupation
+
+x_occupation <- x_num_type %>% 
+  filter(
+    occupation_code == occupation
+  )
+
+# filter by estimate (or margin of error)
+
+x_type <- x_occupation %>% 
+  filter(
+    grepl(type, statistic_name, fixed = TRUE)
+  )
+
+
+################################################################### DATAFRAMES FOR SPANNER VERTICAL COLS
+
+# Total, race and ethnicity column
+
+total_race_ethnicity <- x_type %>% 
+  filter(
+    grepl('Total, race and ethnicity', statistic_name, fixed = TRUE)
+  )
+
+# Hispanic or Latino column
+
+hispanic_or_latino <- x_type %>% 
+  filter(
+    grepl('Hispanic or Latino', statistic_name, fixed = TRUE) &
+    !grepl('Not Hispanic or Latino', statistic_name, fixed = TRUE) &
+    !grepl('Balance of not Hispanic or Latino', statistic_name, fixed = TRUE)
+  )
+
+# Not Hispanic or Latino, one or more races column
+
+not_hispanic_or_latino_one_race <- x_type %>% 
+  filter(
+    grepl('Not Hispanic or Latino, one race', statistic_name, fixed = TRUE)
+  )
+
+# Not Hispanic or Latino, two or more races column
+
+not_hispanic_or_latino_two_ore_more_races <- x_type %>% 
+  filter(
+    grepl('Not Hispanic or Latino, two or more races', statistic_name, fixed = TRUE)
+  )
+
+
+################################################################### DATAFRAMES FOR INDIVIDUAL VERT COLS (RACES)
+
+#### Hispanic or Latino
+
+# White alone Hispanic or Latino
+
+white_alone_hispanic_or_latino <- hispanic_or_latino %>% 
+  filter(
+    grepl('White alone Hispanic or Latino', statistic_name, fixed = TRUE)
+  )
+
+# All other Hispanic or Latino
+
+all_other_hispanic_or_latino <- hispanic_or_latino %>% 
+  filter(
+    grepl('All other Hispanic or Latino', statistic_name, fixed = TRUE)
+  )
+
+
+#### Not Hispanic or Latino, one or more races
+
+# White alone
+
+white_alone <- not_hispanic_or_latino_one_race %>% 
+  filter(
+    grepl('White alone', statistic_name, fixed = TRUE)
+  )
+
+# Black or African American alone
+
+black_or_african_american_alone <- not_hispanic_or_latino_one_race %>% 
+  filter(
+    grepl('Black or African American alone', statistic_name, fixed = TRUE)
+  )
+
+# American Indian and Alaska Native alone
+
+american_indian_and_alask_native_alone <- not_hispanic_or_latino_one_race %>% 
+  filter(
+    grepl('American Indian and Alaska Native alone', statistic_name, fixed = TRUE)
+  )
+
+# Asian alone
+
+asian_alone <- not_hispanic_or_latino_one_race %>% 
+  filter(
+    grepl('Asian alone', statistic_name, fixed = TRUE)
+  )
+
+# Native Hawaiian and Other Pacific Islander alone
+
+native_hawaiian_and_other_pacific_islander_alone <- not_hispanic_or_latino_one_race %>% 
+  filter(
+    grepl('Native Hawaiian and Other Pacific Islander alone', statistic_name, fixed = TRUE)
+  )
+
+
+#### Not Hispanic or Latino, two or more races
+
+# White and Black
+
+white_and_black <- not_hispanic_or_latino_two_ore_more_races %>% 
+  filter(
+    grepl('White and Black', statistic_name, fixed = TRUE)
+  )
+
+# White and AIAN
+
+white_and_aian <- not_hispanic_or_latino_two_ore_more_races %>% 
+  filter(
+    grepl('White and AIAN', statistic_name, fixed = TRUE)
+  )
+
+# White and Asian
+
+white_and_asian <- not_hispanic_or_latino_two_ore_more_races %>% 
+  filter(
+    grepl('White and Asian', statistic_name, fixed = TRUE)
+  )
+
+# Black and Black
+
+black_and_aian <- not_hispanic_or_latino_two_ore_more_races %>% 
+  filter(
+    grepl('Black and AIAN', statistic_name, fixed = TRUE)
+  )
+
+# NHPI and White (Hawaii only)
+
+nhpi_and_white_Hawaii_only <- not_hispanic_or_latino_two_ore_more_races %>% 
+  filter(
+    grepl('NHPI and White (Hawaii only)', statistic_name, fixed = TRUE)
+  )
+
+# NHPI and Asian (Hawaii only)
+
+nhpi_and_asian_Hawaii_only <- not_hispanic_or_latino_two_ore_more_races %>% 
+  filter(
+    grepl('NHPI and Asian (Hawaii only)', statistic_name, fixed = TRUE)
+  )
+
+# NHPI and Asian and White (Hawaii only)
+
+nhpi_and_asian_and_white_Hawaii_only <- not_hispanic_or_latino_two_ore_more_races %>% 
+  filter(
+    grepl('NHPI and Asian and White (Hawaii only)', statistic_name, fixed = TRUE)
+  )
+
+
+################################################################### FUNCTIONS FOR GENDER HORIZONTAL ROWS
+
+# output Total, both sexes total
+
+getTotal <- function(dataframe) {
+  return(
+    dataframe %>% 
+      filter(
+        grepl('Total, both sexes', statistic_name, fixed = TRUE)
+      ) %>% 
+      summarise(sum(count)) %>% 
+      pull()
+  )
+}
+
+# output Female total
+
+getFemale <- function(dataframe) {
+  return(
+    dataframe %>% 
+      filter(
+        grepl("Female", statistic_name, fixed = TRUE)
+      ) %>% 
+      summarise(sum(count)) %>% 
+      pull()
+  )
+}
+
+# output Male total
+
+getMale <- function(dataframe) {
+  return(
+    dataframe %>% 
+      filter(
+        grepl('Male', statistic_name, fixed = TRUE)
+      ) %>% 
+      summarise(sum(count)) %>% 
+      pull()
+  )
+}
+
+
+################################################################### VALUES FOR EACH CELL
+
+#### Total, both sexes row
+
+total_both_sexes_total <- getTotal(total_race_ethnicity)
+total_both_sexes_hisp_white <- getTotal(white_alone_hispanic_or_latino)
+total_both_sexes_hisp_all_other <- getTotal(all_other_hispanic_or_latino)
+total_both_sexes_not_hisp_one_race_white <- getTotal(white_alone)
+total_both_sexes_not_hisp_one_race_black <- getTotal(black_or_african_american_alone)
+total_both_sexes_not_hisp_one_race_american_indian <- getTotal(american_indian_and_alask_native_alone)
+total_both_sexes_not_hisp_one_race_asian <- getTotal(asian_alone)
+total_both_sexes_not_hisp_one_race_nhpi <- getTotal(native_hawaiian_and_other_pacific_islander_alone)
+total_both_sexes_not_hisp_two_races_white_black <- getTotal(white_and_black)
+total_both_sexes_not_hisp_two_races_white_aian <- getTotal(white_and_aian)
+total_both_sexes_not_hisp_two_races_white_asian <- getTotal(white_and_asian)
+total_both_sexes_not_hisp_two_races_black_aian <- getTotal(black_and_aian)
+total_both_sexes_not_hisp_two_races_nhpi_white <- getTotal(nhpi_and_white_Hawaii_only)
+total_both_sexes_not_hisp_two_races_nhpi_asian <- getTotal(nhpi_and_asian_Hawaii_only)
+total_both_sexes_not_hisp_two_races_nhpi_asian_white <- getTotal(nhpi_and_asian_and_white_Hawaii_only)
+
+
+#### Male row
+
+total_male_total <- getMale(total_race_ethnicity)
+total_male_hisp_white <- getMale(white_alone_hispanic_or_latino)
+total_male_hisp_all_other <- getMale(all_other_hispanic_or_latino)
+total_male_not_hisp_one_race_white <- getMale(white_alone)
+total_male_not_hisp_one_race_black <- getMale(black_or_african_american_alone)
+total_male_not_hisp_one_race_american_indian <- getMale(american_indian_and_alask_native_alone)
+total_male_not_hisp_one_race_asian <- getMale(asian_alone)
+total_male_not_hisp_one_race_nhpi <- getMale(native_hawaiian_and_other_pacific_islander_alone)
+total_male_not_hisp_two_races_white_black <- getMale(white_and_black)
+total_male_not_hisp_two_races_white_aian <- getMale(white_and_aian)
+total_male_not_hisp_two_races_white_asian <- getMale(white_and_asian)
+total_male_not_hisp_two_races_black_aian <- getMale(black_and_aian)
+total_male_not_hisp_two_races_nhpi_white <- getMale(nhpi_and_white_Hawaii_only)
+total_male_not_hisp_two_races_nhpi_asian <- getMale(nhpi_and_asian_Hawaii_only)
+total_male_not_hisp_two_races_nhpi_asian_white <- getMale(nhpi_and_asian_and_white_Hawaii_only)
+
+
+#### Female row
+
+total_female_total <- getFemale(total_race_ethnicity)
+total_female_hisp_white <- getFemale(white_alone_hispanic_or_latino)
+total_female_hisp_all_other <- getFemale(all_other_hispanic_or_latino)
+total_female_not_hisp_one_race_white <- getFemale(white_alone)
+total_female_not_hisp_one_race_black <- getFemale(black_or_african_american_alone)
+total_female_not_hisp_one_race_american_indian <- getFemale(american_indian_and_alask_native_alone)
+total_female_not_hisp_one_race_asian <- getFemale(asian_alone)
+total_female_not_hisp_one_race_nhpi <- getFemale(native_hawaiian_and_other_pacific_islander_alone)
+total_female_not_hisp_two_races_white_black <- getFemale(white_and_black)
+total_female_not_hisp_two_races_white_aian <- getFemale(white_and_aian)
+total_female_not_hisp_two_races_white_asian <- getFemale(white_and_asian)
+total_female_not_hisp_two_races_black_aian <- getFemale(black_and_aian)
+total_female_not_hisp_two_races_nhpi_white <- getFemale(nhpi_and_white_Hawaii_only)
+total_female_not_hisp_two_races_nhpi_asian <- getFemale(nhpi_and_asian_Hawaii_only)
+total_female_not_hisp_two_races_nhpi_asian_white <- getFemale(nhpi_and_asian_and_white_Hawaii_only)
+
+
+################################################################### CREATE MATRIX USING VALUES
+
+table_x <- matrix(
+  # column headers
+  
+  c(
+    "Geography, Occupation, Subject",
+    " ",
+    "White alone\nHispanic or Latino",
+    "All other\nHispanic or Latino",
+    "White alone",
+    "Black or African American alone",
+    "American Indian and\nAlaska Native alone",
+    "Asian alone",
+    "Native Hawaiian\nand Other Pacific Islander alone",
+    "White and\nBlack",
+    "White and\nAIAN",
+    "White and\nAsian",
+    "Black and\nAIAN",
+    "NHPI and White\n(Hawaii only)",
+    "NHPI and Asian\n(Hawaii only)",
+    "NHPI and Asian and\nWhite (Hawaii only)",
+
+    'Kentucky','','','','','','','','','','','','','','','',
+    occupation,'','','','','','','','','','','','','','','',
+
+    'Total, both sexes','','','','','','','','','','','','','','','',
+
+    
+    # Total, both sexes Number values
+    
+    'Number',
+    round(total_both_sexes_total, 2),
+    round(total_both_sexes_hisp_white, 2),
+    round(total_both_sexes_hisp_all_other, 2),
+    round(total_both_sexes_not_hisp_one_race_white, 2),
+    round(total_both_sexes_not_hisp_one_race_black, 2),
+    round(total_both_sexes_not_hisp_one_race_american_indian, 2),
+    round(total_both_sexes_not_hisp_one_race_asian, 2),
+    round(total_both_sexes_not_hisp_one_race_nhpi, 2),
+    round(total_both_sexes_not_hisp_two_races_white_black, 2),
+    round(total_both_sexes_not_hisp_two_races_white_aian, 2),
+    round(total_both_sexes_not_hisp_two_races_white_asian, 2),
+    round(total_both_sexes_not_hisp_two_races_black_aian, 2),
+    round(total_both_sexes_not_hisp_two_races_nhpi_white, 2),
+    round(total_both_sexes_not_hisp_two_races_nhpi_asian, 2),
+    round(total_both_sexes_not_hisp_two_races_nhpi_asian_white, 2),
+
+    # Total, both sexes Percent values
+    
+    'Percent',
+    round(total_both_sexes_total / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_hisp_white / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_hisp_all_other / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_one_race_white / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_one_race_black / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_one_race_american_indian / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_one_race_asian / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_one_race_nhpi / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_two_races_white_black / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_two_races_white_aian / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_two_races_white_asian / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_two_races_black_aian / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_two_races_nhpi_white / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_two_races_nhpi_asian / total_both_sexes_total * 100, 2),
+    round(total_both_sexes_not_hisp_two_races_nhpi_asian_white / total_both_sexes_total * 100, 2),
+
+
+    'Male','','','','','','','','','','','','','','','',
+
+    # Male Number values
+    
+    'Number',
+    round(total_male_total, 2),
+    round(total_male_hisp_white, 2),
+    round(total_male_hisp_all_other, 2),
+    round(total_male_not_hisp_one_race_white, 2),
+    round(total_male_not_hisp_one_race_black, 2),
+    round(total_male_not_hisp_one_race_american_indian, 2),
+    round(total_male_not_hisp_one_race_asian, 2),
+    round(total_male_not_hisp_one_race_nhpi, 2),
+    round(total_male_not_hisp_two_races_white_black, 2),
+    round(total_male_not_hisp_two_races_white_aian, 2),
+    round(total_male_not_hisp_two_races_white_asian, 2),
+    round(total_male_not_hisp_two_races_black_aian, 2),
+    round(total_male_not_hisp_two_races_nhpi_white, 2),
+    round(total_male_not_hisp_two_races_nhpi_asian, 2),
+    round(total_male_not_hisp_two_races_nhpi_asian_white, 2),
+
+    # Male Percent values
+    
+    'Percent',
+    round(total_male_total / total_both_sexes_total * 100, 2),
+    round(total_male_hisp_white / total_both_sexes_total * 100, 2),
+    round(total_male_hisp_all_other / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_one_race_white / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_one_race_black / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_one_race_american_indian / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_one_race_asian / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_one_race_nhpi / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_two_races_white_black / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_two_races_white_aian / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_two_races_white_asian / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_two_races_black_aian / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_two_races_nhpi_white / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_two_races_nhpi_asian / total_both_sexes_total * 100, 2),
+    round(total_male_not_hisp_two_races_nhpi_asian_white / total_both_sexes_total * 100, 2),
+
+
+    'Female','','','','','','','','','','','','','','','',
+
+    # Female Number values
+    
+    'Number',
+    round(total_female_total, 2),
+    round(total_female_hisp_white, 2),
+    round(total_female_hisp_all_other, 2),
+    round(total_female_not_hisp_one_race_white, 2),
+    round(total_female_not_hisp_one_race_black, 2),
+    round(total_female_not_hisp_one_race_american_indian, 2),
+    round(total_female_not_hisp_one_race_asian, 2),
+    round(total_female_not_hisp_one_race_nhpi, 2),
+    round(total_female_not_hisp_two_races_white_black, 2),
+    round(total_female_not_hisp_two_races_white_aian, 2),
+    round(total_female_not_hisp_two_races_white_asian, 2),
+    round(total_female_not_hisp_two_races_black_aian, 2),
+    round(total_female_not_hisp_two_races_nhpi_white, 2),
+    round(total_female_not_hisp_two_races_nhpi_asian, 2),
+    round(total_female_not_hisp_two_races_nhpi_asian_white, 2),
+
+    # Female Percent values
+    
+    'Percent',
+    round(total_female_total / total_both_sexes_total * 100, 2),
+    round(total_female_hisp_white / total_both_sexes_total * 100, 2),
+    round(total_female_hisp_all_other / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_one_race_white / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_one_race_black / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_one_race_american_indian / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_one_race_asian / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_one_race_nhpi / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_two_races_white_black / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_two_races_white_aian / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_two_races_white_asian / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_two_races_black_aian / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_two_races_nhpi_white / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_two_races_nhpi_asian / total_both_sexes_total * 100, 2),
+    round(total_female_not_hisp_two_races_nhpi_asian_white / total_both_sexes_total * 100, 2)
+  ),
+  # conditions so matrix is parsed correctly
+  ncol=16,byrow=TRUE
+)
+
+
+################################################################### SET ROWS/COLS OF MATRIX
+
+colnames(table_x) = table_x[1,]
+table_x <- table_x[-1,]
+rownames(table_x) = table_x[,1]
+
+
+################################################################### FORMAT MATRIX INTO PRETTY TABLE
+
+dt <- table_x %>%
+  gt() %>%
+  
+  # spanner labels
+  tab_spanner(
+    label = "Hispanic or Latino",
+    columns = vars("White alone\nHispanic or Latino", "All other\nHispanic or Latino")
+  ) %>%
+  tab_spanner(
+    label = "Not Hispanic or Latino, one race",
+    columns = vars(
+      "White alone",
+      "Black or African American alone",
+      "American Indian and\nAlaska Native alone",
+      "Asian alone",
+      "Native Hawaiian\nand Other Pacific Islander alone",
+      "White and\nBlack",
+      "White and\nAIAN",
+      "White and\nAsian",
+      "Black and\nAIAN"
+    )
+  ) %>%
+    tab_spanner(
+    label = "Not Hispanic or Latino, two or more races",
+    columns = vars(
+      "NHPI and White\n(Hawaii only)",
+      "NHPI and Asian\n(Hawaii only)",
+      "NHPI and Asian and\nWhite (Hawaii only)"
+    )
+  ) %>%
+  tab_spanner(
+    label = "Race/Ethnicity",
+    columns = vars(
+      "Geography, Occupation, Subject"
+    )
+  ) %>%
+  tab_spanner(
+    label = "Total, race\nand Ethnicity",
+    columns = vars(
+      " "
+    )
+  ) %>%
+  
+  # format missing values to zero
+  
+  fmt_missing(
+    columns = 3:16,
+    missing_text = 0
+  )
+
+################################################################### DISPLAY TABLE
+
+dt
+```
