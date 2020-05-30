@@ -22,9 +22,10 @@ library(formattable)
 ```{r}
 ################################################################### vARIABLES
 
-occupation <- "Electricians 6355 (SOC 47-2111)"
-type <- "Estimate"
-num_type <- "Number"
+occupation <- "Logging workers 6130 (SOC 45-4020)"
+type <- "Estimate" # Margin of Error
+num_type <- "Number" # Percent
+geo <- "Wolfe and Nearby Counties County Set, Kentucky"
 
 
 ################################################################### READ FILE WITH DATA
@@ -79,9 +80,20 @@ x_occupation <- x_num_type %>%
     occupation_code == occupation
   )
 
+# filter by geography
+        
+if (geography == "All") {
+    x_geography <- x_occupation
+} else{
+    x_geography <- x_occupation %>%
+        filter(
+            geography == geo
+        )
+}
+
 # filter by estimate (or margin of error)
 
-x_type <- x_occupation %>% 
+x_type <- x_geography %>% 
   filter(
     grepl(type, statistic_name, fixed = TRUE)
   )
